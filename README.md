@@ -16,7 +16,7 @@ create table uyeler(
 uyeNo int Primary key identity(1,1),
 uyeAdi nvarchar(100),
 uyeSoyadi nvarchar(100),
-cinsiyet char(2),
+cinsiyet char(20),
 telefon nvarchar(50),
 eposta nvarchar(50)
 );
@@ -50,7 +50,7 @@ ISBN nvarchar(50) foreign key (ISBN) references Kitaplar (ISBN)
 
 create table kategori(
 kategoriNo int primary key identity(1,1),
-kategoriAdi nvarchar(100),
+kategoriAdi nvarchar(100)
 );
 
 create table yazarlar(
@@ -71,3 +71,24 @@ miktar int,
 ISBN nvarchar(50) foreign key (ISBN) references kitaplar (ISBN),
 kutuphaneNo int foreign key (kutuphaneNo) references kutuphane (kutuphaneNo)
 );
+
+select * from Uyeler
+select * from Adresler
+select * from emanet
+select * from kategori
+select * from kitap_kutuphane
+select * from kitap_yazarlar
+select * from kitaplar
+select * from kutuphane
+select * from yazarlar
+
+insert into Adresler values ('Kayseri',38,2700,'Türkiye','15 Temmuz')
+insert into Adresler(sehir,ulke) values ('istanbul','türkiye')
+insert into Uyeler values ('Nisanur','Yagimli','F',null,'nisanur@gmail.com',null)
+insert into emanet(emanetTarihi,teslimTarihi) values(30-03-2026,30-04-2026)
+insert into kategori values ('edebiyat')
+insert into kitap_kutuphane values (2,null,null)
+insert into kitap_yazarlar values (null,null)
+insert into kitaplar values ('A123','Harry Potter',278,null) 
+insert into kutuphane values (1,'Hogwarts Kutuphane',null,1)
+insert into yazarlar values ('JK','Rowling')
