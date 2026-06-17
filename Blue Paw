@@ -1,0 +1,243 @@
+// oyunu cmd de çalıştırmak için
+// C:\Windows\Microsoft.NET\Framework\v4.0.30319\csc.exe /target:winexe /out:BluePaw.exe BluePaw.cs
+
+using System;
+using System.Drawing;
+using System.Windows.Forms;
+using System.IO;
+
+public class Engel
+{
+    private Rectangle kutu;
+
+    public int X { get { return kutu.X; } set { kutu.X = value; } }
+    public Rectangle Hitbox { get { return kutu; } }
+                    // x, y  weight height
+    public Engel(int x, int y, int w, int h) { kutu = new Rectangle(x, y, w, h); }
+    public virtual void HareketEt(int hiz) { kutu.X -= hiz; }
+}
+
+public class KutuEngel : Engel
+{
+    public KutuEngel(int x, int y, int w, int h) : base(x, y, w, h) { }
+    public override void HareketEt(int hiz) { base.HareketEt(hiz); } 
+}
+
+public class KopekEngel : Engel
+{
+    public KopekEngel(int x, int y, int w, int h) : base(x, y, w, h) { }
+    public override void HareketEt(int hiz) { base.HareketEt(hiz); }
+}
+
+public class BluePawGame : Form
+{
+    enum OyunDurumu { Menu, Oynuyor, OyunBitti }
+    OyunDurumu mevcutDurum = OyunDurumu.Menu;
+
+    Timer oyunZamanlayici = new Timer();
+    Random rastgele = new Random();
+
+    int kediX = 150, kediY = 340, kediDikeyHiz = 0, ziplamaSayisi = 0;
+    int yerCekimi = 2, zeminY = 400, anlikSkor = 0, enYuksekSkor = 0, skorSayaci = 0;
+    int bacakSayaci = 0, menuYaziSayaci = 0, dunyaHizi = 10;
+
+    Image kediDurus, kediph2, kediph3, kediMevcutResim;
+    Image kopekYerde, kopekUcan, kutuu1, kutuu2;
+
+    KutuEngel engelKutu1, engelKutu2;
+    KopekEngel engelKopekYer, engelKopekUcan;
+    Engel ucurum; Engel[] tumEngeller;
+
+    public BluePawGame()
+    {
+        this.Text = "Blue Paw - Nisanur Yağımlı Proje";
+        this.Size = new Size(1000, 500);
+        this.DoubleBuffered = true;
+        this.StartPosition = FormStartPosition.CenterScreen;
+
+        // Resimlerin oyuna yğklenmesi
+        kediDurus = Resim(Color.Black, "kedi1.jpg");
+        kediph2 = Resim(Color.Black, "kedi2.jpg");
+        kediph3 = Resim(Color.Black, "kedi3.jpg");
+        kopekUcan = Resim(Color.Black, "kopek_ucan.jpg");
+        kopekYerde = Resim(Color.Black, "kopek_yer.jpg");
+        kutuu1 = Resim(Color.Black, "kutu1.jpg");
+        kutuu2 = Resim(Color.Black, "kutu2.jpg");
+        kediMevcutResim = kediDurus;
+
+        // engellerin x ve y kord sisteminde oldukları yerleri ve wieght height
+        engelKutu1 = new KutuEngel(1000, zeminY - 90, 100, 150);
+        engelKopekYer = new KopekEngel(1400, zeminY - 53, 120, 90);
+        engelKutu2 = new KutuEngel(1800, zeminY - 60, 90, 80);
+        ucurum = new Engel(2200, zeminY, 100, 100);
+        engelKopekUcan = new KopekEngel(2600, zeminY - 200, 120, 90);
+        tumEngeller = new Engel[] { engelKutu1, engelKutu2, engelKopekYer, engelKopekUcan, ucurum };
+
+        oyunZamanlayici.Interval = 20;
+        oyunZamanlayici.Tick += OyunDongusu;
+        oyunZamanlayici.Start();
+        this.KeyDown += TusBasildi;
+    }
+
+        // jpg resimlerin etrafını şeffaf yapmak için
+    private Image Resim(Color silinecekRenk, string dosyaAdi)
+    {
+        if (!File.Exists(dosyaAdi)) return null;
+        Bitmap bmp = new Bitmap(dosyaAdi);
+        bmp.MakeTransparent(silinecekRenk);
+        return bmp;
+    }
+
+    private void OyunDongusu(object sender, EventArgs e)
+    {
+        if (mevcutDurum == OyunDurumu.Menu) { menuYaziSayaci++; }
+        else if (mevcutDurum == OyunDurumu.Oynuyor)
+        {
+            engelKutu1.HareketEt(dunyaHizi);
+            engelKutu2.HareketEt(dunyaHizi);
+            engelKopekYer.HareketEt(dunyaHizi);
+            engelKopekUcan.HareketEt(dunyaHizi);
+            ucurum.HareketEt(dunyaHizi);
+
+            if (engelKutu1.X > 1000 && engelKopekYer.X > 1000 && rastgele.Next(0, 2) == 0)
+            {
+                int gecici = engelKutu1.X;
+                engelKutu1.X = engelKopekYer.X;
+                engelKopekYer.X = gecici;
+            }
+            if (engelKutu2.X > 1000 && ucurum.X > 1000 && rastgele.Next(0, 2) == 0)
+            {
+                int gecici = engelKutu2.X;
+                engelKutu2.X = ucurum.X;
+                ucurum.X = gecici;
+            }
+            if (engelKopekUcan.X > 1000 && engelKutu1.X > 1000 && rastgele.Next(0, 2) == 0)
+            {
+                int gecici = engelKopekUcan.X;
+                engelKopekUcan.X = engelKutu1.X;
+                engelKutu1.X = gecici;
+            }
+
+            // bir engelden sonra gelen engelin arasındaki pixel mesafese
+            int yeniMesafe = rastgele.Next(350, 550); 
+            if (engelKutu1.X < -100) engelKutu1.X = EnSagdakiEngeliBul() + yeniMesafe;
+            if (engelKutu2.X < -100) engelKutu2.X = EnSagdakiEngeliBul() + yeniMesafe;
+            if (engelKopekYer.X < -100) engelKopekYer.X = EnSagdakiEngeliBul() + yeniMesafe;
+            if (engelKopekUcan.X < -100) engelKopekUcan.X = EnSagdakiEngeliBul() + yeniMesafe;
+            if (ucurum.X < -100) ucurum.X = EnSagdakiEngeliBul() + yeniMesafe;
+        
+        skorSayaci++; 
+        if (skorSayaci % 5 == 0) {
+        anlikSkor++;
+        if (anlikSkor > 0 && anlikSkor % 50 == 0) {
+        dunyaHizi += 1; // skor ellinin katıysa hız 1 artar
+    }
+}
+            // kedinin animasyonu
+            if (ziplamaSayisi == 0) {
+                bacakSayaci++;
+                kediMevcutResim = (bacakSayaci % 8 < 4) ? kediph2 : kediph3;
+            } else { kediMevcutResim = kediDurus; }
+
+            kediY += kediDikeyHiz; // kedinin çukura düşmesi
+            bool ucurumdaMi = (kediX + 40 > ucurum.X && kediX + 20 < ucurum.X + ucurum.Hitbox.Width);
+
+            if (ucurumdaMi && kediY >= zeminY - 60) {
+                kediDikeyHiz += yerCekimi;
+                if (kediY > 500) OyunuBitir();
+            } else {
+                if (kediY < zeminY - 60) { kediDikeyHiz += yerCekimi; }
+                else {
+                    if (kediY > zeminY) OyunuBitir();
+                    else { kediY = zeminY - 60; kediDikeyHiz = 0; ziplamaSayisi = 0; }
+                }
+            }
+
+            Rectangle kediHitbox = new Rectangle(kediX + 20, kediY + 10, 25, 45);
+            if (kediHitbox.IntersectsWith(engelKutu1.Hitbox) || kediHitbox.IntersectsWith(engelKutu2.Hitbox) ||
+                kediHitbox.IntersectsWith(engelKopekYer.Hitbox) || kediHitbox.IntersectsWith(engelKopekUcan.Hitbox))
+            { OyunuBitir(); }
+        }
+        this.Invalidate();
+    }
+
+    private int EnSagdakiEngeliBul() //en sağdaki engele göre yeni gelecek
+    {                                   // engeli atama
+        int enUzak = engelKutu1.X;
+        if (engelKutu2.X > enUzak) enUzak = engelKutu2.X;
+        if (engelKopekYer.X > enUzak) enUzak = engelKopekYer.X;
+        if (engelKopekUcan.X > enUzak) enUzak = engelKopekUcan.X;
+        if (ucurum.X > enUzak) enUzak = ucurum.X;
+        return enUzak;
+    }
+
+    private void OyunuBitir()
+    {
+        mevcutDurum = OyunDurumu.OyunBitti;
+        if (anlikSkor > enYuksekSkor) enYuksekSkor = anlikSkor;
+    }
+
+    private void OyunuSifirla() //yandıktan sonra tekrar başlatma
+    {
+        mevcutDurum = OyunDurumu.Menu;
+        anlikSkor = 0; skorSayaci = 0; kediY = zeminY - 60; kediDikeyHiz = 0; ziplamaSayisi = 0; dunyaHizi = 10;
+        engelKutu1.X = 1000; engelKopekYer.X = 1400; engelKutu2.X = 1800; ucurum.X = 2200; engelKopekUcan.X = 2600;
+    }
+
+    private void TusBasildi(object sender, KeyEventArgs e)
+    {
+        if (mevcutDurum == OyunDurumu.Menu) {
+            if (e.KeyCode == Keys.Enter) mevcutDurum = OyunDurumu.Oynuyor;
+            if (e.KeyCode == Keys.Escape) Application.Exit();
+        }
+        else if (mevcutDurum == OyunDurumu.Oynuyor) {
+            if ((e.KeyCode == Keys.Space || e.KeyCode == Keys.Up) && ziplamaSayisi < 2) {
+                kediDikeyHiz = -22; ziplamaSayisi++;
+            }
+        }
+        else if (mevcutDurum == OyunDurumu.OyunBitti) {
+            if (e.KeyCode == Keys.Enter) OyunuSifirla();
+        }
+    }
+
+    protected override void OnPaint(PaintEventArgs e) //onpainti çağırıp ekrana resimleri
+    {
+        Graphics g = e.Graphics;  // -eklemesini, rengi değiştirmesini istiyoz
+        g.Clear(Color.LightGray);
+        g.FillRectangle(Brushes.DimGray, 0, zeminY, this.ClientSize.Width, this.ClientSize.Height - zeminY);
+        g.FillRectangle(Brushes.LightGray, ucurum.Hitbox);
+
+        if (mevcutDurum == OyunDurumu.Oynuyor || mevcutDurum == OyunDurumu.OyunBitti)
+        {
+            //resimlerde hata çıkarsa oyun çökmemesi için gereklipc kendi çiziyor engelleri
+            if (kutuu1 != null) g.DrawImage(kutuu1, engelKutu1.Hitbox); else g.FillRectangle(Brushes.SaddleBrown, engelKutu1.Hitbox);
+            if (kutuu2 != null) g.DrawImage(kutuu2, engelKutu2.Hitbox); else g.FillRectangle(Brushes.Brown, engelKutu2.Hitbox);
+            if (kopekYerde != null) g.DrawImage(kopekYerde, engelKopekYer.Hitbox); else g.FillRectangle(Brushes.Orange, engelKopekYer.Hitbox);
+            if (kopekUcan != null) g.DrawImage(kopekUcan, engelKopekUcan.Hitbox); else g.FillRectangle(Brushes.Purple, engelKopekUcan.Hitbox);
+            if (kediMevcutResim != null) g.DrawImage(kediMevcutResim, kediX, kediY, 60, 60);
+            
+            g.DrawString("Skor: " + anlikSkor, new Font("Arial", 16, FontStyle.Bold), Brushes.Black, 20, 20);
+        }
+
+        if (mevcutDurum == OyunDurumu.Menu)  //menüde yazının boyutunu yerini düzenleme yazı boyutu ve fontu fln
+        {
+            g.FillRectangle(new SolidBrush(Color.FromArgb(200, 20, 20, 30)), 0, 0, this.ClientSize.Width, this.ClientSize.Height);
+            g.DrawString("BLUE PAW", new Font("Impact", 54, FontStyle.Italic), Brushes.Black, 330, 65);
+            g.DrawString("BLUE PAW", new Font("Impact", 54, FontStyle.Italic), Brushes.DeepSkyBlue, 335, 60);
+            if (kediDurus != null) g.DrawImage(kediDurus, 470, 160, 60, 60);
+            if (menuYaziSayaci % 40 < 25) g.DrawString("Oyunu Başlat [ENTER]", new Font("Arial", 22, FontStyle.Bold), Brushes.White, 330, 250);
+            g.DrawString("Çıkış Yap (ESC)", new Font("Arial", 16, FontStyle.Bold), Brushes.DarkGray, 400, 340);
+            g.DrawString("Maksimum Skor: " + enYuksekSkor, new Font("Arial", 16, FontStyle.Bold), Brushes.Gold, 390, 400);
+        }                                                   // x y kordinantlarıu x'i arttırırsan yazı sağa doğru azaltırsan sola doğru kayacak
+                                                            // y'yi arttırırsan yazı aşağı zaltırsan yukarı çıkacak
+        if (mevcutDurum == OyunDurumu.OyunBitti) // game over bitiş ekranı
+        {
+            g.FillRectangle(new SolidBrush(Color.FromArgb(180, 0, 0, 0)), 0, 0, this.ClientSize.Width, this.ClientSize.Height);
+            g.DrawString("GAME OVER", new Font("Impact", 60, FontStyle.Bold), Brushes.Black, 305, 100);
+            g.DrawString("GAME OVER", new Font("Impact", 60, FontStyle.Bold), Brushes.Red, 310, 105);
+            g.DrawString("Skorun: " + anlikSkor, new Font("Arial", 20, FontStyle.Bold), Brushes.White, 430, 240);
+            g.DrawString("Menüye Dönmek İçin ENTER'a Bas", new Font("Arial", 20, FontStyle.Bold), Brushes.LightYellow, 270, 310);
+        }
+    }
+        [STAThread] public static void Main() { Application.Run(new BluePawGame()); }
+}
